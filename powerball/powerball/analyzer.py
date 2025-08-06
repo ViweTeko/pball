@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import sqlite3
 import random
 from datetime import datetime, timedelta
@@ -85,30 +86,46 @@ def add_draw(draw_date, is_powerball_plus, draw_sequence_num, main_numbers, powe
     finally:
         conn.close()
 
-def simulate_and_add_draws(num_draws_to_simulate):
+def add_draws_interactively():
     """
-    Simulates 'num_draws_to_simulate' Powerball draws and adds them to the database.
-    This is for demonstration/testing. For real analysis, you need actual historical data.
+    Prompts the user for Powerball draw details and adds them to the database.
+    Allows adding multiple draws until the user chooses to stop.
     """
-    print(f"\nSimulating and adding {num_draws_to_simulate} random draws...")
-    start_date = datetime(2020, 1, 1) # Start date for simulated draws
-    current_draw_seq_num = get_max_draw_sequence_num() + 1 # Start from last + 1
+    print("\n--- Add New Powerball Draws Interactively ---")
+    while True:
+        try:
+            draw_date = input("Enter Draw Date (YYYY-MM-DD): ")
+            # Basic date format validation
+            datetime.strptime(draw_date, '%Y-%m-%d')
 
-    for i in range(num_draws_to_simulate):
-        draw_date = (start_date + timedelta(weeks=i)).strftime('%Y-%m-%d')
+            is_powerball_plus_input = input("Is this a Powerball Plus draw? (yes/no): ").lower()
+            is_powerball_plus = 1 if is_powerball_plus_input in ['yes', 'y'] else 0
 
-        # Simulate Powerball Plus status (e.g., 50% chance)
-        is_pb_plus = random.choice([0, 1]) # 0 for False, 1 for True
+            draw_sequence_num = int(input("Enter Draw Sequence Number: "))
 
-        # Simulate main numbers (5 unique numbers from 1 to 50)
-        main_nums = sorted(random.sample(range(1, 51), 5))
+            main_numbers_str = input("Enter Main Numbers (comma-separated, e.g., 1,2,3,4,5): ")
+            main_numbers = [int(num.strip()) for num in main_numbers_str.split(',')]
+            if len(main_numbers) != 5:
+                raise ValueError("Please enter exactly 5 main numbers.")
+            if not all(1 <= num <= 50 for num in main_numbers):
+                 raise ValueError("Main numbers must be between 1 and 50.")
 
-        # Simulate Powerball number (1 number from 1 to 20)
-        pb_num = random.randint(1, 20)
+            powerball_number = int(input("Enter Powerball Number (1-20): "))
+            if not 1 <= powerball_number <= 20:
+                raise ValueError("Powerball number must be between 1 and 20.")
 
-        add_draw(draw_date, is_pb_plus, current_draw_seq_num, main_nums, pb_num)
-        current_draw_seq_num += 1 # Increment for next draw
-    print(f"Finished simulating {num_draws_to_simulate} draws.")
+            add_draw(draw_date, is_powerball_plus, draw_sequence_num, main_numbers, powerball_number)
+            print(f"Successfully added draw for {draw_date}.")
+
+        except ValueError as ve:
+            print(f"Input error: {ve}")
+        except Exception as e:
+            print(f"An unexpected error occurred: {e}")
+
+        add_another = input("Add another draw? (yes/no): ").lower()
+        if add_another in ['no', 'n']:
+            break
+
 
 def get_max_draw_sequence_num():
     """Returns the highest draw_sequence_num in the database, or 0 if none exist."""
@@ -176,77 +193,5 @@ if __name__ == "__main__":
     # 2. Create the composite index
     create_composite_index()
 
-    # 3. Simulate draws (for testing and demonstration)
-    # !!! IMPORTANT: For real analysis, you must replace this with actual historical data.
-    # A few thousand simulated draws won't yield meaningful "odds" for a specific set.
-    # Adding your target set explicitly to ensure it exists for testing
-    # Note: If you run simulations that cover this date, it might cause a unique constraint error on draw_sequence_num
-    # For testing, it's safer to ensure a unique date/sequence num
-    print("\nAttempting to add target specific draw for testing...")
-    add_draw('2024-06-19', 0, 999999999, [2, 18, 35, 41, 46], 1) # High draw_sequence_num to avoid conflict
-    add_draw('2025-06-18', 1, 999999998, [10, 20, 30, 40, 50], 15)
-
-
-    # --- Analysis ---
-    total_draws = get_total_draws_in_db()
-    occurrences = analyze_specific_set_occurrence()
-
-    print(f"\n--- Analysis Results ---")
-    print(f"Total draws (entries in 'draws' table): {total_draws}")
-    print(f"Target Main Numbers: {TARGET_MAIN_NUMBERS}")
-    print(f"Target Powerball Number: {TARGET_POWERBALL}")
-    print(f"Occurrences of target set in database: {occurrences}")
-
-    if total_draws > 0:
-        observed_frequency = occurrences / total_draws
-        print(f"Observed frequency of target set: {occurrences}/{total_draws} = {observed_frequency:.5f}")
-    else:
-        print("No draws in the database to calculate observed frequency.")
-
-    print("\n--- Important Note ---")
-    print(f"Theoretical odds of winning the Powerball jackpot: 1 in 42,375,200")
-    print("The 'observed frequency' from a limited dataset (especially simulated random data)")
-    print("will almost certainly differ greatly from the theoretical odds.")
-    print("For observed frequency to approach theoretical odds, you would need millions of real historical draws.")
-
-    # --- Example of how to view contents of the new tables ---
-    conn = sqlite3.connect(DATABASE_NAME)
-    conn.execute("PRAGMA foreign_keys = ON;")
-    cursor = conn.cursor()
-
-    print("\n--- Sample from 'dates' table (first 5 rows) ---")
-    cursor.execute("SELECT * FROM dates LIMIT 5")
-    dates_rows = cursor.fetchall()
-    print("id | draw_date  | is_powerball_plus | draw_sequence_num")
-    print("---|------------|-------------------|------------------")
-    for row in dates_rows:
-        print(f"{row[0]:<2} | {row[1]:<10} | {row[2]:<17} | {row[3]}")
-
-    print("\n--- Sample from 'draws' table (first 5 rows) ---")
-    cursor.execute("SELECT * FROM draws LIMIT 5")
-    draws_rows = cursor.fetchall()
-    print("id | date_id | m1 | m2 | m3 | m4 | m5 | pb")
-    print("---|---------|----|----|----|----|----|----")
-    for row in draws_rows:
-        print(f"{row[0]:<2} | {row[1]:<7} | {row[2]:<2} | {row[3]:<2} | {row[4]:<2} | {row[5]:<2} | {row[6]:<2} | {row[7]}")
-
-    print("\n--- Querying with JOIN for a specific draw details ---")
-    specific_draw_date = '2024-06-19'
-    cursor.execute(f'''
-        SELECT d.draw_date, d.is_powerball_plus, d.draw_sequence_num,
-               dr.main_num1, dr.main_num2, dr.main_num3, dr.main_num4, dr.main_num5, dr.powerball_num
-        FROM dates AS d
-        JOIN draws AS dr ON d.id = dr.date_id
-        WHERE d.draw_date = ?
-    ''', (specific_draw_date,))
-    specific_draw_result = cursor.fetchone()
-    if specific_draw_result:
-        print(f"Details for {specific_draw_date}:")
-        print(f"  Powerball Plus: {bool(specific_draw_result[1])}")
-        print(f"  Draw Sequence Num: {specific_draw_result[2]}")
-        print(f"  Main Numbers: {specific_draw_result[3:8]}")
-        print(f"  Powerball: {specific_draw_result[8]}")
-    else:
-        print(f"Draw for {specific_draw_date} not found.")
-
-    conn.close()
+    # Start interactive draw input
+    add_draws_interactively()
