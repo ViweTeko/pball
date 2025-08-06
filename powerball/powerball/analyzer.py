@@ -179,9 +179,6 @@ if __name__ == "__main__":
     # 3. Simulate draws (for testing and demonstration)
     # !!! IMPORTANT: For real analysis, you must replace this with actual historical data.
     # A few thousand simulated draws won't yield meaningful "odds" for a specific set.
-    num_simulated_draws = 100000 # Adjust 'n' here.
-    simulate_and_add_draws(num_simulated_draws)
-
     # Adding your target set explicitly to ensure it exists for testing
     # Note: If you run simulations that cover this date, it might cause a unique constraint error on draw_sequence_num
     # For testing, it's safer to ensure a unique date/sequence num
@@ -202,7 +199,7 @@ if __name__ == "__main__":
 
     if total_draws > 0:
         observed_frequency = occurrences / total_draws
-        print(f"Observed frequency of target set: {occurrences}/{total_draws} = {observed_frequency:.10f}")
+        print(f"Observed frequency of target set: {occurrences}/{total_draws} = {observed_frequency:.5f}")
     else:
         print("No draws in the database to calculate observed frequency.")
 
